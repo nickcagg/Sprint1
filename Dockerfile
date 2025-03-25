@@ -1,23 +1,23 @@
-# start by pulling the python image
-FROM python:3.8-alpine
+# Start with a lightweight Python image
+FROM python:3.9-slim
 
-# copy the requirements file into the Docker image
-COPY ./requirements.txt /requirements.txt
+# Set the working directory inside the container
+WORKDIR /app
 
-# switch working directory
-# WORKDIR /app
-RUN apk add --update --no-cache --virtual .tmp-build-deps \
-    gcc libc-dev linux-headers postgresql-dev \
-    && apk add libffi-dev
+# Copy the requirements file into the Docker image
+COPY requirements.txt /app/requirements.txt
 
-# install the dependencies and packages in the requirements file
-RUN python -m pip install --no-cache-dir --disable-pip-version-check --requirement requirements.txt
+# Install dependencies
+RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
-# copy every content from the local file to the image
-# COPY . /app
+# Copy the entire application into the container
+COPY . /app
 
-# configure the container to run in an executed manner
-# ENTRYPOINT [ "python" ]
+# Expose the correct port for Cloud Run
+EXPOSE 8080
 
-EXPOSE 5005
-CMD ["gunicorn", "--config", "gunicorn-cfg.py", "run:app"]
+# Set the environment variable for Cloud Run's required port
+ENV PORT=8080
+
+# Run Gunicorn with proper port binding
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "run:app"]
