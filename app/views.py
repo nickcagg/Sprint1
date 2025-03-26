@@ -4,12 +4,12 @@ Copyright (c) 2019 - present AppSeed.us
 """
 
 # Flask modules
-from flask   import Flask, render_template, request, redirect, url_for, flash
+from flask   import Flask, render_template, request, redirect, url_for, flash, session
 from jinja2  import TemplateNotFound
-import pymysql
+
 
 # App modules
-from app import app
+from app import app, db, cursor
 # from app.models import Profiles
 
 # Other inputs
@@ -18,11 +18,48 @@ from datetime import datetime
 # App main route + generic routing
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if not session.get('student_id'):
+        session["student_id"] = 'none'
 
-@app.route('/about')
-def about():
-    return render_template('about.html')
+    if session["student_id"] == 'none':
+        return redirect(url_for('login'))
+
+    else:
+        return redirect(url_for('student_dashboard', sid=session["student_id"]))
+
+    return render_template('peerevalform.html')
+
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
+@app.route('/userLogin', methods=["POST"])
+def userLogin():
+
+    email = request.form.get("email")
+    pwd = request.form.get("password")
+
+    sql = "select * from Student where Email=%s and Password=%s;"
+
+    cursor.execute(sql, [email, pwd])
+    result = cursor.fetchone()
+
+    if result is None:
+        return redirect(url_for('login'))
+    else:
+        session["student_id"] = result["Student_ID"]
+        
+        return redirect(url_for("student_dashboard", sid=session["student_id"]))
+
+
+@app.route('/studentdashboard/<sid>')
+def student_dashboard(sid):
+
+    return render_template('studentdashboard.html', sid=sid)
+
+@app.route('/eval')
+def eval():
+    return render_template('peerevalform.html')
 
 @app.route('/submitPeerEvaluation', methods=['POST'])
 def submitEval():
@@ -38,17 +75,6 @@ def submitEval():
     comments = request.form.get('comments')
 
     # database connection setup
-    db = pymysql.connect(
-        host='35.245.249.29',
-        port=3306,
-        user='admin',
-        password='SMUGroup3',
-        charset="utf8mb4",
-        database='PeerEvaluationDB',
-        cursorclass=pymysql.cursors.DictCursor
-    )
-    cursor = db.cursor()
-
     # insert data into Evaluation_Result
     sql = '''
         INSERT into Evaluation_Result (Evaluator_Student_ID, Evaluated_Student_ID, GLO_ID, Score, Date_Time, Evaluation_ID)

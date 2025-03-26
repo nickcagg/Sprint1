@@ -1,0 +1,9 @@
+{% extends 'layouts/base.html' %}
+{% block content %}
+<section class="position-relative py-4 py-xl-5">
+    <div class="container">
+        <a href="{{ url_for('eval') }}">evaluation</a>
+        <p>{{sid}}</p>
+    </div>
+</section>
+{% endblock content %}

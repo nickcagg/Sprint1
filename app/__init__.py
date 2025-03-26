@@ -8,13 +8,28 @@ import os
 
 # Import Flask 
 from flask import Flask
+import pymysql
 
 # Inject Flask magic
 app = Flask(__name__)
 
+db = pymysql.connect(
+        host='35.245.249.29',
+        port=3306,
+        user='admin',
+        password='SMUGroup3',
+        charset="utf8mb4",
+        database='PeerEvaluationDB',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+cursor = db.cursor()
+
 
 # Import routing to render the pages
 from app import views
+
+app.secret_key = "jhfskjlwelkj"
+
 
 
 
