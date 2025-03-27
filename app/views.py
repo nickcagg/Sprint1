@@ -47,7 +47,7 @@ def userLogin():
     if result is None:
         return redirect(url_for('login'))
     else:
-        session["student_id"] = result["Student_ID"]
+        setUserInfo(result["Student_ID"], result["FirstName"], result["LastName"], result["Email"])
         
         return redirect(url_for("student_dashboard", sid=session["student_id"]))
 
@@ -55,41 +55,87 @@ def userLogin():
 @app.route('/studentdashboard/<sid>')
 def student_dashboard(sid):
 
-    return render_template('studentdashboard.html', sid=sid)
+    if not session.get('student_id') or session["student_id"] == 'none':
+        return redirect(url_for('login'))
+    
+    else:
 
-@app.route('/eval')
-def eval():
-    return render_template('peerevalform.html')
+        sql = "SELECT c.CourseName, g.GroupName, pe.*, DATEDIFF(pe.Due_Date, CURDATE()) AS Days_Until_Due FROM Peer_Evaluation pe JOIN `Groups` g ON pe.Group_ID = g.Group_ID JOIN Course c ON g.Course_ID = c.Course_ID JOIN Student_Groups sg ON g.Group_ID = sg.Group_ID WHERE sg.Student_ID = %s;"
 
-@app.route('/submitPeerEvaluation', methods=['POST'])
-def submitEval():
+        cursor.execute(sql, [session["student_id"]])
+
+        evalInfo = cursor.fetchall()    
+        evalList = []
+
+        #                                                                                   LOOK AT THIS STUFF ??????????????????????////
+
+        for eval in evalInfo:
+            eid = eval["Evaluation_ID"]
+            sql = "select * from Evaluation_Result where Evaluation_ID=%s and Evaluator_ID=%s;"
+            cursor.execute(sql, [eid, sid])   
+            results = cursor.fetchall()
+            if results is None:
+                pass
+            else:
+                evalList.append(eval)
+
+
+        return render_template('studentdashboard.html', sid=sid, evalLinks=evalList)
+
+@app.route('/eval/<eid>/<gid>')
+def eval(eid, gid):
+    if not session.get('student_id') or session["student_id"] == 'none':
+        return redirect(url_for('login'))
+    
+    else:
+        sql = "SELECT s.Student_ID, s.FirstName, s.LastName, sg.Group_ID FROM Student s JOIN Student_Groups sg ON s.Student_ID = sg.Student_ID WHERE sg.Group_ID = %s AND s.Student_ID <> %s;"
+        cursor.execute(sql, [gid, session["student_id"]])
+        peeps = cursor.fetchall()
+
+        return render_template('peerevalform.html', peeps=peeps, eid=eid)
+
+@app.route('/submitPeerEvaluation/<eid>', methods=['POST'])
+def submitEval(eid):
     # get the form results
     evaluated = int(request.form.get('evaluated'))
-    evaluator = int(request.form.get('evaluator'))
+    evaluator = session["student_id"]
     date = datetime.now()
-    time_management = int(request.form.get('timeManagement'))
-    leadership = int(request.form.get('leadership'))
-    communication = int(request.form.get('communication'))
-    work_ethic = int(request.form.get('workEthic'))
-    score = int(request.form.get('score'))
+    intel_creativity = int(request.form.get('intelCreative'))
+    interpersonal = int(request.form.get('interpersonal'))
+    disciplinary = int(request.form.get('disciplinary'))
+    citizenship = int(request.form.get('citizenship'))
+    mastery = int(request.form.get('mastery'))
     comments = request.form.get('comments')
 
     # database connection setup
     # insert data into Evaluation_Result
-    sql = '''
-        INSERT into Evaluation_Result (Evaluator_Student_ID, Evaluated_Student_ID, GLO_ID, Score, Date_Time, Evaluation_ID)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    '''
-    try:
-        cursor.execute(sql, [evaluator, evaluated, 1, score, date, 1])
-        db.commit()
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        db.rollback()
+    
+    GLOs = [intel_creativity, interpersonal, disciplinary, citizenship, mastery]
+    i = 0
 
+    for score in GLOs:
+        i += 1
+        
+        sql = '''
+            INSERT INTO Evaluation_Result (Evaluation_ID, Evaluator_ID, Evaluated_ID, GLO_ID, Score, Date_Time, Course_ID) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
+        '''
+        try:
+            cursor.execute(sql, [eid, evaluator, evaluated, i, score, date, 1])
+            db.commit()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            db.rollback()        
+
+    return redirect(url_for('student_dashboard', sid=session["student_id"]))
+
+
+def setUserInfo(id, fname, lname, email):
+    session["student_id"] = id
+    session["fname"] = fname
+    session["lname"] = lname
+    session['email'] = email
+
+def stopDatabase():
     cursor.close()
     db.close()
-
-    return "Evaluation Submitted"
-
-
