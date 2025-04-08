@@ -32,8 +32,10 @@
               <span><strong>{{eval["CourseName"]}}</strong> - {{eval["GroupName"]}}</span>
               {% if eval["Days_Until_Due"] < 0 %}
               <span class="badge bg-danger">Overdue {{eval["Days_Until_Due"]}}</span>
+              {% elif eval["Days_Until_Due"] > 0 %}
+              <span class="badge bg-warning text-dark"><a href="{{url_for('eval', eid=eval['Evaluation_ID'], gid=eval['Group_ID'])}}" style="text-decoration:none">{{eval["Days_Until_Due"]}} days remaining</a></span>
               {% else %}
-              <span class="badge bg-success"><a href="{{url_for('eval', eid=eval['Evaluation_ID'], gid=eval['Group_ID'])}}">{{eval["Days_Until_Due"]}} days remaining</a></span>
+              <span class="badge bg-success"><a href="{{url_for('eval', eid=eval['Evaluation_ID'], gid=eval['Group_ID'])}}" style="text-decoration:none">{{eval["Days_Until_Due"]}} days remaining</a></span>
               {% endif %}
               {% endfor %}
             </ul>

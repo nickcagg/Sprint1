@@ -15,23 +15,56 @@ from app import app, db, cursor
 # Other inputs
 from datetime import datetime
 
+import csv
+
 # App main route + generic routing
 @app.route('/')
 def index():
     if not session.get('student_id'):
         session["student_id"] = 'none'
+        session["isLoggedIn"] = False
 
     if session["student_id"] == 'none':
         return redirect(url_for('login'))
 
     else:
-        return redirect(url_for('student_dashboard', sid=session["student_id"]))
+        return redirect(url_for('student_dashboard', sid=session["student_id"])) if session['isProfessor'] == False else redirect(url_for('professorHome', pid=session["student_id"]))
 
     return render_template('peerevalform.html')
 
 @app.route('/login')
 def login():
     return render_template('login.html')
+
+@app.route('/professorDashboard/<pid>')
+def professorHome(pid):
+    sql = "SELECT COUNT(DISTINCT Student.Student_ID) AS Count_Students_Enrolled, (SELECT COUNT(Course_ID) FROM Course WHERE Professor_ID = %s) AS Count_Courses_Taught FROM Student JOIN Student_Course ON Student.Student_ID = Student_Course.Student_ID JOIN Course ON Student_Course.Course_ID = Course.Course_ID WHERE Course.Professor_ID = %s;"
+    cursor.execute(sql, [pid, pid])
+
+    result = cursor.fetchone()
+
+    sql = "SELECT Course.Course_ID, Course.CourseCode, Course.CourseName, COUNT(`Groups`.Group_ID) AS 'GroupCount' FROM Course LEFT JOIN `Groups` ON `Groups`.Course_ID = Course.Course_ID WHERE Course.Professor_ID = %s GROUP BY Course.Course_ID, Course.CourseCode, Course.CourseName;"
+    cursor.execute(sql, [pid])
+
+    courses=cursor.fetchall()
+
+    
+    return render_template('profdashboard.html', activeCourses=result['Count_Students_Enrolled'], totalStudents=result['Count_Courses_Taught'], courses=courses)
+
+
+
+def checkProfessorRegister(email, pwd):
+
+    sql = "select * from Professor where Email=%s and Password=%s;"
+    cursor.execute(sql, [email, pwd])
+    result = cursor.fetchone()
+
+    if result is None:
+        return False
+    
+    else:
+        setUserInfo(result['Professor_ID'], result['FirstName'], result['LastName'], email, isProf=True)
+        return result['Professor_ID']
 
 @app.route('/userLogin', methods=["POST"])
 def userLogin():
@@ -45,12 +78,14 @@ def userLogin():
     result = cursor.fetchone()
 
     if result is None:
-        return redirect(url_for('login'))
+        isProfessor = checkProfessorRegister(email, pwd)
+
+
+        return redirect(url_for('login')) if not isProfessor else redirect(url_for('professorHome', pid=isProfessor))
     else:
-        setUserInfo(result["Student_ID"], result["FirstName"], result["LastName"], result["Email"])
+        setUserInfo(result["Student_ID"], result["FirstName"], result["LastName"], result["Email"], isProf=False)
         
         return redirect(url_for("student_dashboard", sid=session["student_id"]))
-
 
 @app.route('/studentdashboard/<sid>')
 def student_dashboard(sid):
@@ -130,11 +165,32 @@ def submitEval(eid):
     return redirect(url_for('student_dashboard', sid=session["student_id"]))
 
 
-def setUserInfo(id, fname, lname, email):
+@app.route('/readcsv')
+def studentsimporting():
+
+    return "dick"
+
+# @app.route('/addstudents')
+
+
+@app.route('/loggingout')
+def logout():
+    session["student_id"] = None
+    session["fname"] = None
+    session["lname"] = None
+    session['email'] = None
+    session['isLoggedIn'] = False
+
+    return redirect(url_for('login'))
+
+
+def setUserInfo(id, fname, lname, email, isProf):
     session["student_id"] = id
     session["fname"] = fname
     session["lname"] = lname
     session['email'] = email
+    session['isLoggedIn'] = True
+    session['isProfessor'] = isProf
 
 def stopDatabase():
     cursor.close()
