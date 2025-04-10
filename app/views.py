@@ -206,6 +206,8 @@ def postBatchStudents():
 
     return redirect(url_for('index'))
 
+
+
 def insertNewStudent(fname, lname, email):              # use this for new student
 
     sql = "insert into Student(FirstName, LastName, Email, Password, Date_Added) values(%s, %s, %s, 'default', current_date());"
@@ -242,6 +244,20 @@ def addStudentProfile():
     return redirect(url_for('student_course_mgr'))                # change address with edit later
 
 
+@app.route('/addCourse', methods=['POST', 'GET'])
+def addCourse():
+    ccode = request.form.get('ccode')
+    cname = request.form.get('cname')
+    semester = request.form.get('semester')
+    year = request.form.get('year')
+    time = request.form.get('time')
+
+    sql = 'Insert into Course(CourseCode, CourseName, Professor_ID, Semester, Year, Time) VALUES(%s, %s, %s, %s, %s, %s)'
+    cursor.execute(sql, [ccode, cname, session['student_id'], semester, year, time])
+    db.commit()
+
+    return redirect(url_for('student_course_mgr'))
+
 @app.route('/loggingout')
 def logout():
     session["student_id"] = None
@@ -251,6 +267,48 @@ def logout():
     session['isLoggedIn'] = False
 
     return redirect(url_for('login'))
+
+@app.route('/student-group-mgr', methods=['POST', 'GET'])
+def student_group_mgr():
+
+    data = []
+    profClasses = "select Course_ID, CourseCode from Course where Professor_ID=%s;"
+    cursor.execute(profClasses, [session['student_id']])
+    classes = cursor.fetchall()
+
+    course_id = request.form.get('classSelect2')
+
+    if course_id != 'none':
+        sql = 'select * from Student where Student_ID in (select Student_ID from Student_Course where Course_ID=%s);'
+        cursor.execute(sql, [course_id])
+        students = cursor.fetchall()
+        session['tempdata'] = course_id
+    
+    return render_template('manager2.html', classes=classes, course_id=course_id, students=students)
+
+@app.route('/createGroup', methods=['POST'])
+def createGroup():
+    course_id = session['tempdata']
+    students = request.form.getlist('students')
+    groupName = request.form.get('groupName')
+
+    if len(students) > 0:
+        sql = 'INSERT INTO `Groups`(Course_ID, GroupName) VALUES(%s, %s)'
+        cursor.execute(sql, [course_id, groupName])
+        db.commit()
+
+        sql = 'SELECT Group_ID FROM `Groups` WHERE GroupName = %s'
+        cursor.execute(sql, [groupName])
+        groupID = cursor.fetchone()['Group_ID']
+
+        for student in students:
+            sql = 'INSERT INTO Student_Groups(Student_ID, Group_ID) VALUES(%s, %s)'
+            cursor.execute(sql, [student, groupID])
+            db.commit()
+    else:
+        return redirect(url_for('student_group_mgr'))
+
+    return redirect(url_for('index'))
 
 
 def setUserInfo(id, fname, lname, email, isProf):
