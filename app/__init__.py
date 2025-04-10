@@ -13,6 +13,9 @@ import pymysql
 # Inject Flask magic
 app = Flask(__name__)
 
+app.config['UPLOAD_FOLDER'] = 'uploads'  # Create a folder named 'uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 db = pymysql.connect(
         host='35.245.249.29',
         port=3306,

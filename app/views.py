@@ -15,7 +15,7 @@ from app import app, db, cursor
 # Other inputs
 from datetime import datetime
 
-import csv
+import csv, pandas, io
 
 # App main route + generic routing
 @app.route('/')
@@ -49,7 +49,7 @@ def professorHome(pid):
     courses=cursor.fetchall()
 
     
-    return render_template('profdashboard.html', activeCourses=result['Count_Students_Enrolled'], totalStudents=result['Count_Courses_Taught'], courses=courses)
+    return render_template('profdashboard.html', activeCourses=result['Count_Courses_Taught'], totalStudents=result['Count_Students_Enrolled'], courses=courses)
 
 
 
@@ -165,12 +165,81 @@ def submitEval(eid):
     return redirect(url_for('student_dashboard', sid=session["student_id"]))
 
 
-@app.route('/readcsv')
-def studentsimporting():
+@app.route('/student-course-mgr', methods=['POST', 'GET'])
+def student_course_mgr():
+    data = []
+    profClasses = "select Course_ID, CourseCode from Course where Professor_ID=%s;"
+    cursor.execute(profClasses, [session['student_id']])
+    classes = cursor.fetchall()
+    
+    if request.method == 'POST':
+        uploaded_file = request.files['file']
+        if uploaded_file and uploaded_file.filename.endswith('.csv'):
+            stream = io.StringIO(uploaded_file.stream.read().decode("UTF8"), newline=None)
+            csv_input = csv.reader(stream)
+            next(csv_input, None)
+            data = list(csv_input)
+            session['tempdata'] = data
 
-    return "dick"
+    return render_template('manager1.html', data=data, classes=classes)
 
-# @app.route('/addstudents')
+@app.route('/post-batch-students', methods=['POST', 'GET'])
+def postBatchStudents():
+
+    # note that the session var data is going to come out as a list of lists(indexes = each cell data)
+    course_id = request.form.get("classSelect")
+    # print(session['tempdata'], id)
+
+    for student in session['tempdata']:
+        fname = student[0]
+        lname = student[1]
+        email = student[2]
+
+        # SQL insert using this student info
+        insertNewStudent(fname, lname, email)
+        
+        student_id = fetchStudentID(email)
+        
+        # SQL to assign student to course using 'id variable'
+
+        addStudentToCourse(student_id, course_id)
+
+    return redirect(url_for('index'))
+
+def insertNewStudent(fname, lname, email):              # use this for new student
+
+    sql = "insert into Student(FirstName, LastName, Email, Password, Date_Added) values(%s, %s, %s, 'default', current_date());"
+    cursor.execute(sql, [fname, lname, email])
+    db.commit()
+
+def addStudentToCourse(student_id, course_id):
+    sql = "insert into Student_Course(Student_ID, Course_ID) values(%s, %s);"
+    cursor.execute(sql, [student_id, course_id])
+    db.commit()
+
+def fetchStudentID(email):
+
+    student_id = "select Student_ID from Student where Email=%s;"
+    cursor.execute(student_id, [email])
+    student_id = cursor.fetchone()['Student_ID']
+
+    return student_id
+
+
+@app.route('/addStudentProfile', methods=['POST', 'GET'])
+def addStudentProfile():
+    fname = request.form.get('fname')
+    lname = request.form.get('lname')
+    email = request.form.get('email')
+    course_id = request.form.get('classSelect2')
+
+    insertNewStudent(fname, lname, email)
+
+    student_id = fetchStudentID(email)
+
+    addStudentToCourse(student_id, course_id)
+
+    return redirect(url_for('student_course_mgr'))                # change address with edit later
 
 
 @app.route('/loggingout')
