@@ -18,6 +18,8 @@ from datetime import datetime
 import csv, pandas, io
 
 # App main route + generic routing
+
+
 @app.route('/')
 def index():
     if not session.get('student_id'):
@@ -25,6 +27,7 @@ def index():
         session["isLoggedIn"] = False
 
     if session["student_id"] == 'none':
+        session['msg'] = 'none'
         return redirect(url_for('login'))
 
     else:
@@ -80,8 +83,13 @@ def userLogin():
     if result is None:
         isProfessor = checkProfessorRegister(email, pwd)
 
+        if not isProfessor:
+            session['msg'] = "Invalid Login Credentials"
+            return redirect(url_for('login'))
+        else: 
+            session['msg'] = 'none'
+            return redirect(url_for('professorHome', pid=isProfessor))
 
-        return redirect(url_for('login')) if not isProfessor else redirect(url_for('professorHome', pid=isProfessor))
     else:
         setUserInfo(result["Student_ID"], result["FirstName"], result["LastName"], result["Email"], isProf=False)
         
@@ -167,6 +175,7 @@ def submitEval(eid):
 
 @app.route('/student-course-mgr', methods=['POST', 'GET'])
 def student_course_mgr():
+    session['msg'] = 'none'
     data = []
     profClasses = "select Course_ID, CourseCode from Course where Professor_ID=%s;"
     cursor.execute(profClasses, [session['student_id']])
@@ -194,17 +203,31 @@ def postBatchStudents():
         fname = student[0]
         lname = student[1]
         email = student[2]
+        student_id = None
 
-        # SQL insert using this student info
-        insertNewStudent(fname, lname, email)
+        sql = "select Student_ID from Student where Email=%s;"
+        cursor.execute(sql, [email])
+
+        student_exists = cursor.fetchone()
+
+        if not student_exists:
         
-        student_id = fetchStudentID(email)
+
+            # SQL insert using this student info
+            insertNewStudent(fname, lname, email)
+        
+            student_id = fetchStudentID(email)
+        
+        else:
+            student_id = student_exists['Student_ID']
         
         # SQL to assign student to course using 'id variable'
 
         addStudentToCourse(student_id, course_id)
 
-    return redirect(url_for('index'))
+    session['msg'] = "Student Batch Sucessfully Uploaded!"
+
+    return redirect(url_for('professorHome', pid=session['student_id']))
 
 
 
@@ -235,13 +258,30 @@ def addStudentProfile():
     email = request.form.get('email')
     course_id = request.form.get('classSelect2')
 
-    insertNewStudent(fname, lname, email)
+    student_id = None
 
-    student_id = fetchStudentID(email)
+    sql = "select Student_ID from Student where Email=%s;"
+    cursor.execute(sql, [email])
+
+    student_exists = cursor.fetchone()
+
+    if not student_exists:
+    
+
+        # SQL insert using this student info
+        insertNewStudent(fname, lname, email)
+    
+        student_id = fetchStudentID(email)
+    
+    else:
+        student_id = student_exists['Student_ID']
+
 
     addStudentToCourse(student_id, course_id)
 
-    return redirect(url_for('student_course_mgr'))                # change address with edit later
+    session['msg'] = "Student Sucessfully Uploaded!"
+
+    return redirect(url_for('professorHome', pid=session['student_id']))
 
 
 @app.route('/addCourse', methods=['POST', 'GET'])
@@ -256,7 +296,10 @@ def addCourse():
     cursor.execute(sql, [ccode, cname, session['student_id'], semester, year, time])
     db.commit()
 
-    return redirect(url_for('student_course_mgr'))
+    session['msg'] = 'Course Sucessfully Added!'
+
+    return redirect(url_for('professorHome', pid=session['student_id']))
+
 
 @app.route('/loggingout')
 def logout():
@@ -265,12 +308,13 @@ def logout():
     session["lname"] = None
     session['email'] = None
     session['isLoggedIn'] = False
+    session['msg'] = 'none'
 
     return redirect(url_for('login'))
 
 @app.route('/student-group-mgr', methods=['POST', 'GET'])
 def student_group_mgr():
-
+    session['msg'] = 'none'
     data = []
     profClasses = "select Course_ID, CourseCode from Course where Professor_ID=%s;"
     cursor.execute(profClasses, [session['student_id']])
@@ -307,8 +351,11 @@ def createGroup():
             db.commit()
     else:
         return redirect(url_for('student_group_mgr'))
+    
+    session['msg'] = "Group Successfully Created!"
 
-    return redirect(url_for('index'))
+    return redirect(url_for('professorHome', pid=session['student_id']))
+
 
 
 def setUserInfo(id, fname, lname, email, isProf):

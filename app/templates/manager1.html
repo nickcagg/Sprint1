@@ -21,6 +21,7 @@
                   <input type="file" class="form-control" name="file" accept=".csv" required>
                   <button type="submit" class="input-group-text">Upload CSV</button>
               </div>
+              <p><strong>Format the CSV file with headers the following headings: </strong>FirstName, LastName, Email</p>
             </form>
             
             {% if data %}
@@ -114,13 +115,32 @@
       <input class="form-control" type="text" name="cname" required/>
 
       <label class="form-label">Semester:</label>
-      <input class="form-control" type="text" name="semester" required/>
+      <select name="semester" class="form-select form-select-lg mb-3">
+        <option value="Term 1" selected>Term 1</option>
+        <option value="Term 2">Term 2</option>
+      </select>
 
       <label class="form-label">Year:</label>
-      <input class="form-control" type="text" name="year" required/>
+      <select class="form-select form-select-lg mb-3" name="year">
+        <option value="2025" selected>2025</option>
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+      </select>
 
       <label class="form-label">Time:</label>
-      <input class="form-control" type="text" name="time" required/>
+      <select class="form-select form-select-lg mb-3" name="time">
+        <option value="8:00 AM" selected>8:00 AM</option>
+        <option value="9:00 AM">9:00 AM</option>
+        <option value="10:00 AM">10:00 AM</option>
+        <option value="11:00 AM">11:00 AM</option>
+        <option value="12:00 PM">12:00 PM</option> 
+        <option value="1:00 PM">1:00 PM</option>
+        <option value="2:00 PM">2:00 PM</option>
+        <option value="3:00 PM">3:00 PM</option>
+        <option value="4:00 PM">4:00 PM</option>
+        <option value="5:00 PM">5:00 PM</option>
+        <option value="Async">Asynchronous</option>
+      </select>
       <br>
       <button type="submit" class="btn btn-primary" style="color:white; background-color:#141C52;">Submit</button>
       <button type="reset" class="btn btn-primary" style="color:white; background-color:#8a704c;">Reset</button>

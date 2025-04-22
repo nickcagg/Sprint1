@@ -26,6 +26,7 @@ db = pymysql.connect(
         cursorclass=pymysql.cursors.DictCursor
     )
 cursor = db.cursor()
+app.config["SQLALCHEMY_POOL_RECYCLE"] = 3600
 
 
 # Import routing to render the pages
